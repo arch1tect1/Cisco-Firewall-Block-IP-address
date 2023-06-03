@@ -1,22 +1,22 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Регистрация</title>
+  <title>Registration</title>
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-  <h1>Регистрация</h1>
+  <h1><title>Registration</title></h1>
   <form method="POST" action="/register">
-    <label for="username">Имя пользователя:</label>
+    <label for="username">Username :</label>
     <input type="text" name="username" required>
 
-    <label for="password">Пароль:</label>
+    <label for="password">Password :</label>
     <input type="password" name="password" required>
 
-    <label for="confirm_password">Подтвердите пароль:</label>
+    <label for="confirm_password">Confirm password:</label>
     <input type="password" name="confirm_password" required>
 
-    <button type="submit">Зарегистрироваться</button>
+    <button type="submit">Registration</button>
   </form>
 </body>
 </html>
