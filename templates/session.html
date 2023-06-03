@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Профиль</title>
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <h1>Профиль</h1>
+  <p>Добро пожаловать, {{ session['username'] }}!</p>
+  <a href="/logout">Выйти</a>
+</body>
+</html>
