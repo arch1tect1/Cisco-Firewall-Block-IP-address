@@ -3,7 +3,7 @@
 
 ##### Here is possible to add IP address by its abusive percentage( 0-25% - 1 Hour, 25-50% - 1 day, 50-75 - 1 hour, 75-100% - 24 hour ) or you can select Auto and program will automatically define percentage via [AbuseIPDB](https://www.abuseipdb.com/).
 
-#### Requset sends to AbuseIPDB via its API and IP percentage defines automatically.
+#### Request sends to AbuseIPDB via its API and IP percentage defines automatically.
 
 ![](assets/images/abuseipdb.png)
 
