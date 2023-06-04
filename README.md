@@ -11,4 +11,4 @@
 
 ![](assets/images/image.jpg)
 
-Below you can check the documentation link for the [Triggering via Threat Response API](https://ciscosecurity.github.io/sxo-05-security-workflows/workflows/response/tr-api)
+For the more details you can check the full documentation for the [Triggering via Threat Response API](https://ciscosecurity.github.io/sxo-05-security-workflows/workflows/response/tr-api)
