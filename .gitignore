@@ -1,11 +1,10 @@
-git check-ignore -v -- html/
+# Исключить все HTML-файлы
+#*.html
 
-/html
-!/html/css
-!/html/images
-!/html/scripts
-!/html/about-us.html
-!/html/corporate.php
-!/html/index.html
-!/html/muse_manifest.xml
-!/html/terms-and-conditions.html
+# Исключить конкретный HTML-файл
+/путь/к/файлу/index.html
+/templates/login.html
+/templates/change_password.html
+/templates/profile.html
+/templates/register.html
+/templates/session.html
