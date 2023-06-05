@@ -1,1 +1,9 @@
-*.html
+/html
+!/html/css
+!/html/images
+!/html/scripts
+!/html/about-us.html
+!/html/corporate.php
+!/html/index.html
+!/html/muse_manifest.xml
+!/html/terms-and-conditions.html
