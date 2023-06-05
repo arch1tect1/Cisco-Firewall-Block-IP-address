@@ -1,10 +1,1 @@
-# Исключить все HTML-файлы
-#*.html
-
-# Исключить конкретный HTML-файл
-# /путь/к/файлу/index.html
-/templates/login.html
-/templates/change_password.html
-/templates/profile.html
-/templates/register.html
-/templates/session.html
+*.html
