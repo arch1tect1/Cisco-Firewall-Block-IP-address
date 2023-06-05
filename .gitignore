@@ -2,7 +2,7 @@
 #*.html
 
 # Исключить конкретный HTML-файл
-/путь/к/файлу/index.html
+# /путь/к/файлу/index.html
 /templates/login.html
 /templates/change_password.html
 /templates/profile.html
