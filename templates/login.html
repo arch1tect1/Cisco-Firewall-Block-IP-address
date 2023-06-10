@@ -108,11 +108,11 @@
         var expireTime = time + 1000 * 36000;
         now.setTime(expireTime);
 
-        fetch("http://10.0.170.72:8080/login", {
+        fetch("http://IP_address:port/login", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "http://10.0.170.72:8080",
+            "Access-Control-Allow-Origin": "http://IP_address:port",
           },
           body: JSON.stringify({
             username: username,
@@ -131,7 +131,7 @@
                 ";expires=" +
                 now.toUTCString() +
                 ";path=/;domain="+window.location.hostname;
-              window.location = "http://10.0.170.72:8080/";
+              window.location = "http://IP_address:port/";
 			  return false
             }
           })
