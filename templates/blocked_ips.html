@@ -115,11 +115,11 @@
       function unBlockIP(ipAddress) {
         event.preventDefault(); // prevent form submission
 
-        fetch("http://10.0.170.72:8080/unblock-ip", {
+        fetch("http://IP_address:port/unblock-ip", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "http://10.0.170.72:8080",
+            "Access-Control-Allow-Origin": "IP_address:port",
           },
           body: JSON.stringify({
             ipAddress: ipAddress,
@@ -138,7 +138,7 @@
                 }
               });
             } else if (response.status == 302) {
-              window.location.replace("http://10.0.170.72:8080/login");
+              window.location.replace("http://IP_address:port/login");
             } else {
               response.text().then(function (text) {
                 if (!alert(text)) {
