@@ -33,7 +33,7 @@ def jobid_of_ip(ip):
 
 def block_ip_address(ip_address, duration, user, block_time, unblock_time):
 
-    url = 'https://visibility.apjc.amp.cisco.com/iroh/iroh-response/respond/trigger/87e7c012-3456-434e-b982-6849856efceb/0252ZOKRSO3N56BkKnHoYAlSNIKlIcXe6XA?action_id=0252ZOKRSO3N56BkKnHoYAlSNIKlIcXe6XA&observable_type=ip&observable_value='+ip_address
+    url = 'https://visibility.apjc.amp.cisco.com/iroh/iroh-response/respond/trigger/YOUR_Trigger_ID'+ip_address
 
     headers = {'Content-Type':'application/x-www-form-urlencoded', 'Accept':'application/json', 'Authorization': 'Bearer ' + access_token}
 
@@ -52,7 +52,7 @@ def block_ip_address(ip_address, duration, user, block_time, unblock_time):
 
 def unblock_ip_address(ip_address, user="Robot"):
 
-    url = 'https://visibility.apjc.amp.cisco.com/iroh/iroh-response/respond/trigger/87e7c012-3456-434e-b982-6849856efceb/024W3ZJQVKRQ80BHwW0FznlUF8mSy4ADknV?action_id=024W3ZJQVKRQ80BHwW0FznlUF8mSy4ADknV&observable_type=ip&observable_value='+ip_address
+    url = 'https://visibility.apjc.amp.cisco.com/iroh/iroh-response/respond/trigger/YOUR_Trigger_ID'+ip_address
 
     headers = {'Content-Type':'application/x-www-form-urlencoded', 'Accept':'application/json', 'Authorization': 'Bearer ' + access_token}
 
@@ -75,7 +75,7 @@ def unblock_ip_address(ip_address, user="Robot"):
     return response
 
 def unblock_permanently_blocked(ip_address,user):
-    url = 'https://visibility.apjc.amp.cisco.com/iroh/iroh-response/respond/trigger/87e7c012-3456-434e-b982-6849856efceb/024W3ZJQVKRQ80BHwW0FznlUF8mSy4ADknV?action_id=024W3ZJQVKRQ80BHwW0FznlUF8mSy4ADknV&observable_type=ip&observable_value='+ip_address
+    url = 'https://visibility.apjc.amp.cisco.com/iroh/iroh-response/respond/trigger/YOUR_Trigger_ID'+ip_address
 
     headers = {'Content-Type':'application/x-www-form-urlencoded', 'Accept':'application/json', 'Authorization': 'Bearer ' + access_token}
 
@@ -90,8 +90,8 @@ def unblock_permanently_blocked(ip_address,user):
 
 def get_token():
 
-    client_id = 'client-279521e6-495c-46bd-8966-aa5189727977'
-    client_password = 'QlGIhnVwPMOR-MuAnX1AkSVTrMU0n2lEPr5JHLVlOno45RcAhVXY4w'
+    client_id = 'YOUR_CLIENT_ID'
+    client_password = 'YOUR_PASSWORD'
     url = 'https://visibility.apjc.amp.cisco.com/iroh/oauth2/token'
 
     global access_token
