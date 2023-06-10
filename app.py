@@ -1,251 +1,178 @@
-from flask import Flask, render_template, request, redirect, session
 import sqlite3
-import hashlib
-from datetime import datetime
-
+from flask import Flask, render_template, make_response, redirect, url_for, request
+from flask_cors import CORS
+from apscheduler.schedulers.background import BackgroundScheduler
+from datetime import datetime, timedelta
+from login import user_login, check_current_password, change_user_password
+from securex import get_token, block_ip_address, unblock_ip_address, associate_ip_and_jobid, jobid_of_ip, delete_job, unblock_permanently_blocked
+from abuse_ip import blocktime_basedon_abusescore, check_abuse_score
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key'
+CORS(app)
 
-access_token = "" # from Cisco SecureX
+get_token()
 
-
-# SQLite db creation
-conn = sqlite3.connect('users.db')
-c = conn.cursor()
-
-# Table creation if not exists
-c.execute('''CREATE TABLE IF NOT EXISTS users 
-             (id INTEGER PRIMARY KEY AUTOINCREMENT,
-              username TEXT NOT NULL,
-              password TEXT NOT NULL)''')
-conn.commit()
-conn.close()
+scheduler = BackgroundScheduler()
+scheduler.add_jobstore('sqlalchemy', url='sqlite:///databases/job_store.sqlite')
+scheduler.start()
+scheduler.add_job(get_token, 'interval', minutes=10)
 
 
-# new user registration
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        confirm_password = request.form['confirm_password']
-        
-        if password != confirm_password:
-            return "Password are not matched!"
-        
-        # hashing with SHA256
-        hashed_password = hashlib.sha256(password.encode()).hexdigest()
-        
-        conn = sqlite3.connect('users.db')
-        c = conn.cursor()
-        
-        c.execute("SELECT * FROM users WHERE username=?", (username,))
-        result = c.fetchone()
-        
-        if result:
-            return "User exists!"
-        
-        c.execute("INSERT INTO users (username, password) VALUES (?, ?)",
-                  (username, hashed_password))
-        conn.commit()
-        conn.close()
-        
-        return redirect('/login')
+@app.route('/unblock-ip', methods=['POST'])
+def unblock_ip():
+    ip_address = request.json.get('ipAddress')
+    user = request.json.get('user')
+
+    if user == None:
+        response = make_response("Login Required")
+        response.status_code = 302
+        return response
+
+    con = sqlite3.connect("./databases/blocked_ips.sqlite", check_same_thread=False)
+    cur = con.cursor()
+    cur.execute("""SELECT IP FROM ips WHERE IP=?""",(ip_address,))
+    result = cur.fetchone()
+    con.close()
+    if not result:
+        result = unblock_permanently_blocked(ip_address,user)
+        if result.status_code == 200:
+            response = make_response ("IP unblocked successfully",200)
+            return response
+        else:
+            response = make_response("Something went wrong", 500)
+            return response
+
+    unblock_result = unblock_ip_address(ip_address, user)
+
+    if unblock_result.status_code == 200:
+        response = make_response ("IP unblocked successfully",200)
+        return response
+    else:
+        response = make_response("Something went wrong", 500)
+        return response
+
+@app.route('/block-ip', methods=['POST'])
+def block_ip():
+    ip_address = request.json.get('ipAddress')
+    time_amount = request.json.get('timeRange')
+    user = request.json.get('user')
+    now = datetime.now()
+    time_result = None
+
+    if user == None:
+        response = make_response("Login Required")
+        response.status_code = 302
+        return response
+
+    if time_amount != 'auto':
+        time_result = now + timedelta(hours=int(time_amount))
+    elif time_amount == 'auto':
+        time_result = now + timedelta(hours=blocktime_basedon_abusescore(check_abuse_score(ip_address)))
     
-    return render_template('register.html')
+    con = sqlite3.connect("./databases/blocked_ips.sqlite", check_same_thread=False)
+    cur = con.cursor()
+    cur.execute("""SELECT IP FROM ips WHERE IP=?""",(ip_address,))
+    result = cur.fetchone()
+    con.close()
+
+    if result:
+        print("IP already added to blacklist")
+        response = make_response("IP already blocked")
+        response.status_code = 409
+        return response
+    
+    if time_amount == 'auto':
+        abuse_score = check_abuse_score(ip_address)
+        block_time = blocktime_basedon_abusescore(abuse_score)
+        block_result = block_ip_address(ip_address,block_time,user,now,time_result)
+        if block_result.status_code == 200:
+            job = scheduler.add_job(unblock_ip_address, 'date', run_date=time_result, args=[ip_address], misfire_grace_time=432000)
+            job_id = job.id
+            associate_ip_and_jobid(job_id, ip_address)
+            response = make_response("Abuse percentage of IP address is {score} and blocked for {time} hours".format(score=abuse_score, time=block_time),200)
+            return response
+        else:
+            response = make_response("Something went wrong",500)
+            return response
+    else:
+        block_result = block_ip_address(ip_address,int(time_amount),user,now,time_result)
+        if block_result.status_code == 200:
+            job = scheduler.add_job(unblock_ip_address, 'date', run_date=time_result, args=[ip_address], misfire_grace_time=432000)
+            job_id = job.id
+            associate_ip_and_jobid(job_id, ip_address)
+            response = make_response("IP blocked successfully for {time} hours".format(time=time_amount),200)
+            return response
+        else:
+            response = make_response("Something went wrong",500)
+            return response
 
 
-# profile page
-@app.route('/login', methods=['GET', 'POST'])
+@app.route("/", methods=['GET'])
+def home():
+    cookie = request.cookies.get("user")
+    
+    con = sqlite3.connect("./databases/users.sqlite", check_same_thread=False)
+    cur = con.cursor()
+    cur.execute("""SELECT * FROM users_table WHERE USERNAME=?""",(cookie,))
+    result = cur.fetchone()
+
+    if result:
+        return render_template('index.html')
+    
+    return redirect(url_for('login'))
+    
+    
+@app.route("/blocked-ips",methods=['GET'])
+def blocked_ips():
+    con = sqlite3.connect("./databases/blocked_ips.sqlite", check_same_thread=False)
+    cur = con.cursor()
+    cur.execute("SELECT * FROM ips")
+    data = cur.fetchall()
+    con.close()
+    return render_template('blocked_ips.html', data=data)
+
+
+@app.route('/login',methods=['GET','POST'])
 def login():
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        
-        hashed_password = hashlib.sha256(password.encode()).hexdigest()
-        
-        conn = sqlite3.connect('users.db')
-        c = conn.cursor()
-        
-        c.execute("SELECT * FROM users WHERE username=? AND password=?",
-                  (username, hashed_password))
-        result = c.fetchone()
-        
-        conn.close()
-        
-        if result:
-            session['username'] = username
-            return redirect('/profile')
+        username = request.json.get('username')
+        password = request.json.get('password')
+        login_result = user_login(username,password)
+        print(login_result)
+        if not login_result:
+            response = make_response("Authentication failed")
+            response.status_code = 401
+            return response
         else:
-            return "Incorrect username or password!"
-    
-    return render_template('login.html')
+            response = make_response("Success")
+            response.status_code = 200
+            return response
+        
+    response = make_response(render_template("login.html"))
+    return response
 
-
-# logout
-@app.route('/logout')
-def logout():
-    session.pop('username', None)
-    return redirect('/login')
-
-
-# change password
-@app.route('/change_password', methods=['GET', 'POST'])
+@app.route('/change-password',methods=['GET','POST'])
 def change_password():
-    if 'username' not in session:
-        return redirect('/login')
-    
     if request.method == 'POST':
-        username = session['username']
-        old_password = request.form['old_password']
-        new_password = request.form['new_password']
-        confirm_password = request.form['confirm_password']
-        
-        if new_password != confirm_password:
-            return "Password are not matched!"
-        
-        conn = sqlite3.connect('users.db')
-        c = conn.cursor()
-        
-        c.execute("SELECT * FROM users WHERE username=?", (username,))
-        result = c.fetchone()
-        
-        if result:
-            stored_password = result[2]
-            
-            if hashlib.sha256(old_password.encode()).hexdigest() == stored_password:
-                # password updating
-                hashed_password = hashlib.sha256(new_password.encode()).hexdigest()
-                c.execute("UPDATE users SET password=? WHERE username=?", (hashed_password, username))
-                conn.commit()
-                conn.close()
-                
-                return "Password changed successfully!"
-        
-        conn.close()
-        return "Wrong password!"
-    
-    return render_template('change_password.html')
+        cur_pass = request.json.get('cur_pass')
+        new_pass = request.json.get('new_pass')
+        user = request.json.get('user')
 
+        if user == "None":
+            return redirect(url_for('login'))
 
-# routes protection using decorators
-@app.route('/profile')
-def profile():
-    if 'username' in session:
-        return render_template('profile.html')
-    else:
-        return redirect('/login')
+        if check_current_password(user, cur_pass):
+            print('checking')
+            change_user_password(user, new_pass)
+            response = make_response("Success")
+            response.status_code = 200
+        else:
+            response = make_response("Update Failed")
+            response.status_code = 400
+            return response
 
-
-#-----------------------------------Cisco SecureX part----------------------------------------------#
-
-def delete_job(jobid):
-    con = sqlite3.connect("./databases/job_store.sqlite", check_same_thread=False)
-    cur = con.cursor()
-    cur.execute("DELETE FROM apscheduler_jobs WHERE id = ?",(jobid,))
-    con.commit()
-    con.close()
-
-
-def associate_ip_and_jobid(jobid, ip):
-    con = sqlite3.connect("./databases/jobs.sqlite", check_same_thread=False)
-    cur = con.cursor()
-    cur.execute("INSERT INTO job_data VALUES (? , ?)",(jobid, ip))
-    con.commit()
-    con.close()
-
-
-def jobid_of_ip(ip):
-    con = sqlite3.connect("./databases/jobs.sqlite", check_same_thread=False)
-    cur = con.cursor()
-    cur.execute("SELECT job_id from job_data WHERE ip_address = ?", (ip,))
-    row = cur.fetchone()
-    job_id = row[0]
-    cur.execute("DELETE FROM job_data WHERE ip_address = ?",(ip,))
-    con.commit()
-    con.close()
-
-    return job_id 
-
-
-def block_ip_address(ip_address, duration, user, block_time, unblock_time):
-
-    url = 'https://visibility.apjc.amp.cisco.com/iroh/iroh-response/respond/trigger/your_action_url_with_action_id='+ip_address
-
-    headers = {'Content-Type':'application/x-www-form-urlencoded', 'Accept':'application/json', 'Authorization': 'Bearer ' + access_token}
-
-    response = requests.post(url, headers=headers)
-
-    if response.status_code == 200:
-        with open("./logs.txt", "a") as f:
-                f.write("[" + str(datetime.now()) + "] " + "{ip_address} sent to block by {user} and will be unblocked on {time_result} \n".format(ip_address=ip_address, user=user, time_result=str(unblock_time)))
-        con = sqlite3.connect("./databases/blocked_ips.sqlite", check_same_thread=False)
-        cur = con.cursor()
-        cur.execute("INSERT INTO ips VALUES (?, ?, ?, ?, ?)", (ip_address, user, block_time, duration, unblock_time))
-        con.commit()
-        con.close()
-
+    response = make_response(render_template("change_password.html"))
     return response
-
-
-def unblock_ip_address(ip_address, user="Robot"):
-
-    url = 'https://visibility.apjc.amp.cisco.com/iroh/iroh-response/respond/trigger/your_action_url_with_action_id='+ip_address
-
-    headers = {'Content-Type':'application/x-www-form-urlencoded', 'Accept':'application/json', 'Authorization': 'Bearer ' + access_token}
-
-    response = requests.post(url, headers=headers)
-
-    if response.status_code == 200:
-        if user != "Robot":
-            jobid = jobid_of_ip(ip_address)
-            delete_job(jobid)
-
-        with open("./logs.txt", "a") as f:
-            f.write("[" + str(datetime.now()) + "] " + "{ip_address} unblocked by {user} \n".format(ip_address=ip_address, user=user))
-
-        con = sqlite3.connect("./databases/blocked_ips.sqlite", check_same_thread=False)
-        cur = con.cursor()
-        cur.execute("DELETE FROM ips WHERE IP = ?", (ip_address,))
-        con.commit()
-        con.close()
-    
-    return response
-
-
-def unblock_permanently_blocked(ip_address,user):
-    url = 'https://visibility.apjc.amp.cisco.com/iroh/iroh-response/respond/trigger/your_action_url_with_action_id'+ip_address
-
-    headers = {'Content-Type':'application/x-www-form-urlencoded', 'Accept':'application/json', 'Authorization': 'Bearer ' + access_token}
-
-    response = requests.post(url, headers=headers)
-
-    if response.status_code == 200:
-        with open("./logs.txt", "a") as f:
-            f.write("[" + str(datetime.now()) + "] " + "{ip_address} unblocked by {user} \n".format(ip_address=ip_address, user=user))
-
-    return response
-
-
-def get_token():
-
-    client_id = ''
-    client_password = ''
-    url = 'https://visibility.apjc.amp.cisco.com/iroh/oauth2/token'
-
-    global access_token
-
-    headers = {'Content-Type':'application/x-www-form-urlencoded', 'Accept':'application/json'}
-
-    payload = {'grant_type':'client_credentials'}
-
-    response = requests.post(url, headers=headers, auth=(client_id, client_password), data=payload)
-
-    json_data = response.json()
-
-    access_token = json_data['access_token']
-
 
 if __name__ == '__main__':
     app.run(debug=True)
