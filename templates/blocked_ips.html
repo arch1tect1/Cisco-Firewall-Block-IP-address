@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="refresh" content="3600" />
+    <title>Blocked IPs</title>
+    <script src="https://code.jquery.com/jquery-latest.min.js"></script>
+    <link
+      rel="icon"
+      href="https://w7.pngwing.com/pngs/380/538/png-transparent-man-looking-at-three-computer-monitors-illustration-network-operations-center-information-security-operations-center-computer-icons-control-room-monitor-miscellaneous-blue-angle-thumbnail.png"
+      type="image/x-icon"
+    />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f2f2f2;
+      }
+
+      h1 {
+        text-align: center;
+        margin-top: 50px;
+      }
+
+      table {
+        margin: 0 auto;
+        border-collapse: collapse;
+        background-color: #fff;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+      }
+
+      thead {
+        background-color: #333;
+        color: #fff;
+      }
+
+      th,
+      td {
+        padding: 12px 15px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+      }
+
+      tbody tr:nth-child(even) {
+        background-color: #f2f2f2;
+      }
+
+      a {
+        color: #333;
+        text-decoration: none;
+      }
+
+      a:hover {
+        color: #000;
+        text-decoration: underline;
+      }
+
+      button {
+        background-color: #ffffff;
+        border-radius: 5px;
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: 0.4s;
+      }
+
+      #unBlockButton {
+        background-color: #ffffff;
+        border-radius: 5px;
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: 0.4s;
+        bottom: 0;
+        right: 0;
+      }
+
+      #unBlockButton:hover {
+        background-color: rgb(0, 159, 0);
+        color: #ffffff;
+      }
+
+      .button-cell {
+        text-align: right;
+      }
+    </style>
+  </head>
+  <body>
+    <table>
+      <div>
+        <tr>
+          <th>IP ADDRESS</th>
+          <th>USER</th>
+          <th>BLOCK TIME</th>
+          <th>BLOCK DURATION</th>
+          <th>UNBLOCK TIME</th>
+          <th>UNBLOCK</th>
+        </tr>
+        {% for row in data %}
+        <tr>
+          <td>{{ row[0] }}</td>
+          <td>{{ row[1] }}</td>
+          <td>{{ row[2] }}</td>
+          <td>{{ row[3] }} hours</td>
+          <td>{{ row[4] }}</td>
+          <td class="button-cell">
+            <button id="unBlockButton" onclick="unBlockIP('{{ row[0] }}')">
+              Unblock
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </div>
+    </table>
+
+    <script>
+      function unBlockIP(ipAddress) {
+        event.preventDefault(); // prevent form submission
+
+        fetch("http://10.0.170.72:8080/unblock-ip", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "http://10.0.170.72:8080",
+          },
+          body: JSON.stringify({
+            ipAddress: ipAddress,
+            user: document.cookie
+              .split("; ")
+              .find((row) => row.startsWith("user="))
+              ?.split("=")[1],
+          }),
+        })
+          .then((response) => {
+            var res = document.getElementById("response");
+            if (response.status == 200) {
+              response.text().then(function (text) {
+                if (!alert(text)) {
+                  window.location.reload();
+                }
+              });
+            } else if (response.status == 302) {
+              window.location.replace("http://10.0.170.72:8080/login");
+            } else {
+              response.text().then(function (text) {
+                if (!alert(text)) {
+                  window.location.reload();
+                }
+              });
+            }
+          })
+          .catch((error) => {
+            console.error(error);
+          });
+      }
+    </script>
+  </body>
+</html>
